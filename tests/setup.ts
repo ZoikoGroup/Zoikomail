@@ -15,6 +15,9 @@ process.env.JWT_REFRESH_EXPIRES_IN ??= "7d";
 process.env.BCRYPT_ROUNDS ??= "4";
 process.env.CORS_ORIGIN ??= "http://localhost:3000";
 process.env.RATE_LIMIT_MAX ??= "1000";
+process.env.REGISTER_RATE_LIMIT_MAX ??= "1000";
+process.env.LOGIN_RATE_LIMIT_MAX ??= "1000";
+process.env.REFRESH_RATE_LIMIT_MAX ??= "1000";
 
 if (process.env.TEST_DATABASE_URL) {
   process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;

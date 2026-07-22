@@ -37,6 +37,32 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
   sendSuccess(res, 200, { message: "Logged out successfully" }, req.requestId);
 });
 
+export const changePassword = asyncHandler(async (req: Request, res: Response) => {
+  const tenant = req.tenantContext!;
+  await authService.changePassword(
+    req.body,
+    tenant.userId,
+    tenant.tenantId,
+    getRequestContext(req)
+  );
+  sendSuccess(res, 200, { message: "Password changed successfully" }, req.requestId);
+});
+
+export const logoutAll = asyncHandler(async (req: Request, res: Response) => {
+  const tenant = req.tenantContext!;
+  const revokedSessionCount = await authService.logoutAll(
+    tenant.userId,
+    tenant.tenantId,
+    getRequestContext(req)
+  );
+  sendSuccess(
+    res,
+    200,
+    { message: "Logged out from all tenant devices", revokedSessionCount },
+    req.requestId
+  );
+});
+
 export const me = asyncHandler(async (req: Request, res: Response) => {
   const result = authService.getCurrentUser(req);
   sendSuccess(res, 200, result, req.requestId);

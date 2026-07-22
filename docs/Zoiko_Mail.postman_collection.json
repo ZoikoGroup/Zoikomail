@@ -1,0 +1,96 @@
+{
+  "info": {
+    "_postman_id": "d710545c-f66c-4e71-a185-zoikomail0001",
+    "name": "Zoiko Mail API",
+    "description": "Complete local API collection. Register, login, and refresh automatically save session variables.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "tenantId", "value": "00000000-0000-4000-8000-000000000001" },
+    { "key": "membershipId", "value": "" },
+    { "key": "eventId", "value": "" }
+    ,{ "key": "invitationToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "System",
+      "item": [
+        { "name": "Health", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/api/health" } },
+        { "name": "OpenAPI JSON", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/api/docs.json" } }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register",
+          "event": [{ "listen": "test", "script": { "exec": ["const d=pm.response.json().data; pm.collectionVariables.set('accessToken',d.tokens.accessToken); pm.collectionVariables.set('refreshToken',d.tokens.refreshToken); pm.collectionVariables.set('tenantId',d.tenant.id); pm.collectionVariables.set('membershipId',d.membership.id);"] } }],
+          "request": { "auth": { "type": "noauth" }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"postman-user@zoiko.test\",\n  \"password\": \"Password123!\",\n  \"displayName\": \"Postman User\",\n  \"tenantName\": \"Postman Tenant\",\n  \"planCode\": \"starter\"\n}" }, "url": "{{baseUrl}}/api/v1/auth/register" }
+        },
+        {
+          "name": "Login",
+          "event": [{ "listen": "test", "script": { "exec": ["const d=pm.response.json().data; if(d.accessToken){pm.collectionVariables.set('accessToken',d.accessToken);pm.collectionVariables.set('refreshToken',d.refreshToken);pm.collectionVariables.set('tenantId',d.tenant.id);pm.collectionVariables.set('membershipId',d.membership.id);}"] } }],
+          "request": { "auth": { "type": "noauth" }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"owner@zoiko.test\",\n  \"password\": \"Password123!\",\n  \"tenantId\": \"{{tenantId}}\"\n}" }, "url": "{{baseUrl}}/api/v1/auth/login" }
+        },
+        {
+          "name": "Refresh",
+          "event": [{ "listen": "test", "script": { "exec": ["const d=pm.response.json().data; pm.collectionVariables.set('accessToken',d.accessToken); pm.collectionVariables.set('refreshToken',d.refreshToken);"] } }],
+          "request": { "auth": { "type": "noauth" }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"refreshToken\":\"{{refreshToken}}\"}" }, "url": "{{baseUrl}}/api/v1/auth/refresh" }
+        },
+        { "name": "Current Session", "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/auth/me" } },
+        { "name": "Change Password", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"currentPassword\":\"Password123!\",\"newPassword\":\"NewPassword123!\"}" }, "url": "{{baseUrl}}/api/v1/auth/change-password" } },
+        { "name": "Logout", "request": { "auth": { "type": "noauth" }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"refreshToken\":\"{{refreshToken}}\"}" }, "url": "{{baseUrl}}/api/v1/auth/logout" } },
+        { "name": "Logout All", "request": { "method": "POST", "url": "{{baseUrl}}/api/v1/auth/logout-all" } }
+      ]
+    },
+    {
+      "name": "User Profile",
+      "item": [
+        { "name": "Get Profile", "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/users/me" } },
+        { "name": "Update Profile", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"displayName\":\"Updated User\",\"timezone\":\"Asia/Kolkata\",\"language\":\"en-IN\"}" }, "url": "{{baseUrl}}/api/v1/users/me" } }
+      ]
+    },
+    {
+      "name": "Tenant Settings",
+      "item": [
+        { "name": "Get Current Tenant", "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/tenants/current" } },
+        { "name": "Update Current Tenant", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"Zoiko Tenant\",\"timezone\":\"Asia/Kolkata\",\"allowedDomains\":[\"zoiko.com\"]}" }, "url": "{{baseUrl}}/api/v1/tenants/current" } }
+      ]
+    },
+    {
+      "name": "Memberships",
+      "item": [
+        { "name": "List Members", "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/membership/members" } },
+        {
+          "name": "Create Invitation",
+          "event": [{ "listen": "test", "script": { "exec": ["if(pm.response.code===201){const d=pm.response.json().data;pm.collectionVariables.set('membershipId',d.membership.id);pm.collectionVariables.set('invitationToken',d.invitationToken);}"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"email\":\"member@zoiko.test\",\"role\":\"MEMBER\"}" }, "url": "{{baseUrl}}/api/v1/membership/invitations" }
+        },
+        { "name": "Accept Invitation", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"invitationToken\":\"{{invitationToken}}\"}" }, "url": "{{baseUrl}}/api/v1/membership/invitations/accept" } },
+        { "name": "Cancel Invitation", "request": { "method": "DELETE", "url": "{{baseUrl}}/api/v1/membership/invitations/{{membershipId}}" } },
+        {
+          "name": "Add Existing User",
+          "event": [{ "listen": "test", "script": { "exec": ["if(pm.response.code===201) pm.collectionVariables.set('membershipId',pm.response.json().data.id);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"email\":\"member@zoiko.test\",\"role\":\"MEMBER\"}" }, "url": "{{baseUrl}}/api/v1/membership/members" }
+        },
+        { "name": "Update Member", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"role\":\"ADMIN\",\"status\":\"ACTIVE\"}" }, "url": "{{baseUrl}}/api/v1/membership/members/{{membershipId}}" } },
+        { "name": "Remove Member", "request": { "method": "DELETE", "url": "{{baseUrl}}/api/v1/membership/members/{{membershipId}}" } }
+      ]
+    },
+    {
+      "name": "Audit",
+      "item": [
+        {
+          "name": "List Events",
+          "event": [{ "listen": "test", "script": { "exec": ["const e=pm.response.json().data.events; if(e.length) pm.collectionVariables.set('eventId',e[0].id);"] } }],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/audit/events?page=1&limit=25" }
+        },
+        { "name": "Get Event", "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/audit/events/{{eventId}}" } }
+      ]
+    }
+  ]
+}

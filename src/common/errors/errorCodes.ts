@@ -9,6 +9,8 @@ export const ErrorCodes = {
   TOKEN_EXPIRED: "TOKEN_EXPIRED",
   TOKEN_REUSED: "TOKEN_REUSED",
   INTERNAL_ERROR: "INTERNAL_ERROR",
+  INVITATION_INVALID: "INVITATION_INVALID",
+  INVITATION_EXPIRED: "INVITATION_EXPIRED",
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];

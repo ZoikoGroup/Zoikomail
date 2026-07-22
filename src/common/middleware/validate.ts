@@ -15,7 +15,16 @@ export function validate<T>(schema: ZodType<T>, source: RequestSource = "body") 
       return;
     }
 
-    req[source] = result.data;
+    if (source === "query") {
+      Object.defineProperty(req, "query", {
+        value: result.data,
+        configurable: true,
+        enumerable: true,
+        writable: false,
+      });
+    } else {
+      req[source] = result.data;
+    }
     next();
   };
 }

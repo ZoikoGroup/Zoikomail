@@ -93,7 +93,7 @@ describe("Auth security", () => {
     const owner = await registerUser(app, { email: "owner-role@zoiko.test" });
 
     await request(app)
-      .get("/api/v1/membership/admin-check")
+      .get("/api/v1/membership/members")
       .set(authHeader(owner.accessToken))
       .expect(200);
 
@@ -118,7 +118,7 @@ describe("Auth security", () => {
     const memberToken = memberLogin.body.data.accessToken;
 
     const denied = await request(app)
-      .get("/api/v1/membership/admin-check")
+      .get("/api/v1/membership/members")
       .set(authHeader(memberToken))
       .expect(403);
 
@@ -143,7 +143,7 @@ describe("Auth security", () => {
       .expect(200);
 
     const response = await request(app)
-      .get("/api/v1/membership/admin-check")
+      .get("/api/v1/membership/members")
       .set(authHeader(login.body.data.accessToken))
       .expect(403);
 

@@ -8,15 +8,23 @@ datasource db {
 }
 
 model Tenant {
-  id            String             @id @default(uuid()) @db.Uuid
-  name          String
-  status        TenantStatus       @default(ACTIVE)
-  planCode      String             @map("plan_code")
-  createdAt     DateTime           @default(now()) @map("created_at")
-  updatedAt     DateTime           @updatedAt @map("updated_at")
-  auditEvents   AuditEvent[]
-  refreshTokens RefreshToken[]
-  memberships   TenantMembership[]
+  id             String             @id @default(uuid()) @db.Uuid
+  name           String
+  status         TenantStatus       @default(ACTIVE)
+  planCode       String             @map("plan_code")
+  timezone       String?            @default("UTC")
+  language       String?            @default("en")
+  logoUrl        String?            @map("logo_url")
+  allowedDomains String[]           @default([]) @map("allowed_domains")
+  passwordPolicy Json?              @map("password_policy")
+  memberLimit    Int?               @map("member_limit")
+  aiSettings     Json?              @map("ai_settings")
+  settings       Json?
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+  auditEvents    AuditEvent[]
+  refreshTokens  RefreshToken[]
+  memberships    TenantMembership[]
 
   @@map("tenants")
 }
@@ -26,6 +34,10 @@ model AppUser {
   email         String             @unique
   passwordHash  String             @map("password_hash")
   displayName   String             @map("display_name")
+  avatarUrl     String?            @map("avatar_url")
+  phoneNumber   String?            @map("phone_number")
+  timezone      String?            @default("UTC")
+  language      String?            @default("en")
   status        AppUserStatus      @default(ACTIVE)
   createdAt     DateTime           @default(now()) @map("created_at")
   updatedAt     DateTime           @updatedAt @map("updated_at")
@@ -37,18 +49,21 @@ model AppUser {
 }
 
 model TenantMembership {
-  id        String           @id @default(uuid()) @db.Uuid
-  tenantId  String           @map("tenant_id") @db.Uuid
-  userId    String           @map("user_id") @db.Uuid
-  role      MembershipRole   @default(MEMBER)
-  status    MembershipStatus @default(ACTIVE)
-  createdAt DateTime         @default(now()) @map("created_at")
-  updatedAt DateTime         @updatedAt @map("updated_at")
-  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user      AppUser          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String           @id @default(uuid()) @db.Uuid
+  tenantId        String           @map("tenant_id") @db.Uuid
+  userId          String           @map("user_id") @db.Uuid
+  role            MembershipRole   @default(MEMBER)
+  status          MembershipStatus @default(ACTIVE)
+  inviteToken     String?          @unique @map("invite_token")
+  inviteExpiresAt DateTime?        @map("invite_expires_at")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user            AppUser          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, userId])
   @@index([userId])
+  @@index([inviteToken])
   @@map("tenant_memberships")
 }
 
@@ -105,6 +120,8 @@ enum MembershipRole {
 }
 
 enum MembershipStatus {
+  INVITED
   ACTIVE
   SUSPENDED
+  REMOVED
 }

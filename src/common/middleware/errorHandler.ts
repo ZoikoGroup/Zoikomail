@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 import { env } from "../../config/env.js";
 import { AppError } from "../errors/AppError.js";
 import { ErrorCodes } from "../errors/errorCodes.js";
+import { logger } from "../../config/logger.js";
 
 export function notFoundHandler(req: Request, res: Response): void {
   res.status(404).json({
@@ -50,10 +51,12 @@ export function errorHandler(
     return;
   }
 
-  console.error("[unhandled-error]", {
+  logger.error({
     requestId: req.requestId,
-    error,
-  });
+    err: error,
+    method: req.method,
+    path: req.path,
+  }, "Unhandled request error");
 
   res.status(500).json({
     success: false,

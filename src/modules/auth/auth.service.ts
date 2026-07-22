@@ -19,6 +19,7 @@ import { userRepository } from "../user/user.repository.js";
 import type {
   LoginInput,
   LogoutInput,
+  ChangePasswordInput,
   RefreshInput,
   RegisterInput,
 } from "./auth.schema.js";
@@ -479,6 +480,75 @@ export class AuthService {
         userAgent: context.userAgent,
       });
     }
+  }
+
+  async changePassword(
+    input: ChangePasswordInput,
+    userId: string,
+    tenantId: string,
+    context: RequestContext
+  ): Promise<void> {
+    const user = await userRepository.findById(userId);
+    if (!user || !(await verifyPassword(input.currentPassword, user.passwordHash))) {
+      throw new AppError("Current password is incorrect", 401, ErrorCodes.UNAUTHORIZED);
+    }
+    if (await verifyPassword(input.newPassword, user.passwordHash)) {
+      throw new AppError(
+        "New password must be different from the current password",
+        409,
+        ErrorCodes.CONFLICT
+      );
+    }
+
+    const passwordHash = await hashPassword(input.newPassword);
+    await prisma.$transaction(async (tx) => {
+      await tx.appUser.update({ where: { id: userId }, data: { passwordHash } });
+      await tx.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      await auditService.record(
+        {
+          tenantId,
+          actorUserId: userId,
+          eventType: AuditEventTypes.PASSWORD_CHANGED,
+          targetType: "AppUser",
+          targetId: userId,
+          requestId: context.requestId,
+          ipAddress: context.ipAddress,
+          userAgent: context.userAgent,
+        },
+        tx
+      );
+    });
+  }
+
+  async logoutAll(
+    userId: string,
+    tenantId: string,
+    context: RequestContext
+  ): Promise<number> {
+    return prisma.$transaction(async (tx) => {
+      const revoked = await tx.refreshToken.updateMany({
+        where: { userId, tenantId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      await auditService.record(
+        {
+          tenantId,
+          actorUserId: userId,
+          eventType: AuditEventTypes.LOGOUT_ALL,
+          targetType: "AppUser",
+          targetId: userId,
+          requestId: context.requestId,
+          ipAddress: context.ipAddress,
+          userAgent: context.userAgent,
+          metadata: { revokedSessionCount: revoked.count },
+        },
+        tx
+      );
+      return revoked.count;
+    });
   }
 
   getCurrentUser(req: Request): AuthSessionResponse["user"] & {

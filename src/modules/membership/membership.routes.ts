@@ -1,31 +1,40 @@
 import { Router } from "express";
-import {
-  asyncHandler,
-  authenticate,
-  requireRole,
-  tenantContext,
-} from "../../common/middleware/index.js";
-import { sendSuccess } from "../../common/utils/response.js";
+import { authenticate, requireRole, tenantContext, validate } from "../../common/middleware/index.js";
+import * as controller from "./membership.controller.js";
+import { acceptInvitationSchema, addMemberSchema, createInvitationSchema, membershipIdParamsSchema, updateMemberSchema } from "./membership.schema.js";
 
 const membershipRouter = Router();
 
-membershipRouter.get(
-  "/admin-check",
+membershipRouter.post(
+  "/invitations/accept",
   authenticate,
-  tenantContext,
-  requireRole("ADMIN", "OWNER"),
-  asyncHandler(async (req, res) => {
-    sendSuccess(
-      res,
-      200,
-      {
-        message: "Admin access granted",
-        tenantId: req.tenantContext!.tenantId,
-        role: req.tenantContext!.role,
-      },
-      req.requestId
-    );
-  })
+  validate(acceptInvitationSchema),
+  controller.acceptInvitation
+);
+
+membershipRouter.use(authenticate, tenantContext, requireRole("ADMIN", "OWNER"));
+membershipRouter.get("/members", controller.list);
+membershipRouter.post("/members", validate(addMemberSchema), controller.add);
+membershipRouter.post(
+  "/invitations",
+  validate(createInvitationSchema),
+  controller.createInvitation
+);
+membershipRouter.delete(
+  "/invitations/:membershipId",
+  validate(membershipIdParamsSchema, "params"),
+  controller.cancelInvitation
+);
+membershipRouter.patch(
+  "/members/:membershipId",
+  validate(membershipIdParamsSchema, "params"),
+  validate(updateMemberSchema),
+  controller.update
+);
+membershipRouter.delete(
+  "/members/:membershipId",
+  validate(membershipIdParamsSchema, "params"),
+  controller.remove
 );
 
 export { membershipRouter };
