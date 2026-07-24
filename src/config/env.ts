@@ -25,6 +25,10 @@ const envSchema = z.object({
   LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
   REFRESH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
   INVITATION_EXPIRES_IN_HOURS: z.coerce.number().int().min(1).max(720).default(72),
+  ATTACHMENT_STORAGE_PATH: z.string().min(1).default("storage/attachments"),
+  ATTACHMENT_MAX_SIZE_BYTES: z.coerce.number().int().positive().max(25 * 1024 * 1024).default(10 * 1024 * 1024),
+  MAIL_SEND_WINDOW_MS: z.coerce.number().int().min(60_000).default(3_600_000),
+  MAIL_MAX_RECIPIENTS_PER_WINDOW: z.coerce.number().int().positive().default(100),
   BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),
 }).superRefine((value, context) => {
   if (value.JWT_ACCESS_SECRET === value.JWT_REFRESH_SECRET) {

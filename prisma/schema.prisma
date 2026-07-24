@@ -25,6 +25,15 @@ model Tenant {
   auditEvents    AuditEvent[]
   refreshTokens  RefreshToken[]
   memberships    TenantMembership[]
+  policies       TenantPolicy[]
+  mailboxes      Mailbox[]
+  emailMessages  EmailMessage[]
+  threads        MessageThread[]
+  domains        MailDomain[]
+  aiActions      AIAction[]
+  commitments    Commitment[]
+  notifications  Notification[]
+  integrationLinks IntegrationLink[]
 
   @@map("tenants")
 }
@@ -44,6 +53,13 @@ model AppUser {
   auditEvents   AuditEvent[]       @relation("AuditActor")
   refreshTokens RefreshToken[]
   memberships   TenantMembership[]
+  createdPolicies TenantPolicy[] @relation("PolicyCreator")
+  authoredMessages EmailMessage[] @relation("MessageAuthor")
+  createdAiActions AIAction[] @relation("AICreator")
+  ownedCommitments Commitment[] @relation("CommitmentOwner")
+  createdCommitments Commitment[] @relation("CommitmentCreator")
+  notifications Notification[]
+  createdIntegrationLinks IntegrationLink[] @relation("IntegrationCreator")
 
   @@map("app_users")
 }
@@ -60,6 +76,8 @@ model TenantMembership {
   updatedAt       DateTime         @updatedAt @map("updated_at")
   tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user            AppUser          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mailbox         Mailbox?
+  receivedMessages MessageRecipient[]
 
   @@unique([tenantId, userId])
   @@index([userId])
@@ -102,6 +120,260 @@ model AuditEvent {
   @@map("audit_events")
 }
 
+model TenantPolicy {
+  id              String       @id @default(uuid()) @db.Uuid
+  tenantId        String       @map("tenant_id") @db.Uuid
+  type            PolicyType
+  name            String
+  description     String?
+  version         Int
+  status          PolicyStatus @default(DRAFT)
+  rules           Json
+  createdByUserId String       @map("created_by_user_id") @db.Uuid
+  activatedAt     DateTime?    @map("activated_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+  tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy       AppUser      @relation("PolicyCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, type, version])
+  @@index([tenantId, type, status])
+  @@map("tenant_policies")
+}
+
+model Mailbox {
+  id           String           @id @default(uuid()) @db.Uuid
+  tenantId     String           @map("tenant_id") @db.Uuid
+  membershipId String           @unique @map("membership_id") @db.Uuid
+  address      String
+  storageUsed  BigInt           @default(0) @map("storage_used")
+  storageLimit BigInt           @default(1073741824) @map("storage_limit")
+  sendWindowStartedAt DateTime  @default(now()) @map("send_window_started_at")
+  sendRecipientCount Int        @default(0) @map("send_recipient_count")
+  sendSuspendedAt DateTime?     @map("send_suspended_at")
+  sendSuspensionReason String?  @map("send_suspension_reason")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  membership   TenantMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  items        MailboxMessage[]
+
+  @@unique([tenantId, address])
+  @@index([tenantId, membershipId])
+  @@map("mailboxes")
+}
+
+model EmailMessage {
+  id           String          @id @default(uuid()) @db.Uuid
+  tenantId     String          @map("tenant_id") @db.Uuid
+  authorUserId String          @map("author_user_id") @db.Uuid
+  threadId     String?         @map("thread_id") @db.Uuid
+  subject      String
+  textBody     String?         @map("text_body")
+  htmlBody     String?         @map("html_body")
+  status       MessageStatus   @default(DRAFT)
+  sentAt       DateTime?       @map("sent_at")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+  tenant       Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  author       AppUser         @relation("MessageAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+  thread       MessageThread?  @relation(fields: [threadId], references: [id], onDelete: SetNull)
+  recipients   MessageRecipient[]
+  mailboxItems MailboxMessage[]
+  attachments  MessageAttachment[]
+  deliveryEvents DeliveryEvent[]
+
+  @@index([tenantId, authorUserId, createdAt])
+  @@index([tenantId, threadId, createdAt])
+  @@map("email_messages")
+}
+
+model MessageThread {
+  id                String         @id @default(uuid()) @db.Uuid
+  tenantId          String         @map("tenant_id") @db.Uuid
+  subjectNormalized String         @map("subject_normalized")
+  participants      Json
+  firstMessageAt    DateTime       @map("first_message_at")
+  lastMessageAt     DateTime       @map("last_message_at")
+  messageCount      Int            @default(1) @map("message_count")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+  tenant            Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  messages          EmailMessage[]
+
+  @@index([tenantId, lastMessageAt])
+  @@map("message_threads")
+}
+
+model MessageRecipient {
+  id                    String              @id @default(uuid()) @db.Uuid
+  tenantId              String              @map("tenant_id") @db.Uuid
+  messageId             String              @map("message_id") @db.Uuid
+  email                 String
+  type                  RecipientType
+  deliveryStatus        DeliveryStatus      @default(PENDING) @map("delivery_status")
+  recipientMembershipId String?             @map("recipient_membership_id") @db.Uuid
+  createdAt             DateTime            @default(now()) @map("created_at")
+  message               EmailMessage        @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  recipientMembership   TenantMembership?   @relation(fields: [recipientMembershipId], references: [id], onDelete: SetNull)
+
+  @@unique([messageId, email, type])
+  @@index([tenantId, email])
+  @@map("message_recipients")
+}
+
+model MailboxMessage {
+  id        String        @id @default(uuid()) @db.Uuid
+  tenantId  String        @map("tenant_id") @db.Uuid
+  mailboxId String        @map("mailbox_id") @db.Uuid
+  messageId String        @map("message_id") @db.Uuid
+  folder    MailFolder
+  isRead    Boolean       @default(false) @map("is_read")
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+  mailbox   Mailbox       @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+  message   EmailMessage  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([mailboxId, messageId])
+  @@index([tenantId, mailboxId, folder, createdAt])
+  @@map("mailbox_messages")
+}
+
+model MessageAttachment {
+  id         String       @id @default(uuid()) @db.Uuid
+  tenantId   String       @map("tenant_id") @db.Uuid
+  messageId  String       @map("message_id") @db.Uuid
+  fileName   String       @map("file_name")
+  contentType String      @map("content_type")
+  sizeBytes  Int          @map("size_bytes")
+  storageKey String       @map("storage_key")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  message    EmailMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, messageId])
+  @@map("message_attachments")
+}
+
+model DeliveryEvent {
+  id                String            @id @default(uuid()) @db.Uuid
+  tenantId          String            @map("tenant_id") @db.Uuid
+  messageId         String            @map("message_id") @db.Uuid
+  recipientId       String?           @map("recipient_id") @db.Uuid
+  type              DeliveryEventType
+  providerEventId   String?           @map("provider_event_id")
+  failureCode       String?           @map("failure_code")
+  failureReason     String?           @map("failure_reason")
+  metadata          Json?
+  createdAt         DateTime          @default(now()) @map("created_at")
+  message           EmailMessage      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, messageId, createdAt])
+  @@index([tenantId, type, createdAt])
+  @@map("delivery_events")
+}
+
+model MailDomain {
+  id                String                   @id @default(uuid()) @db.Uuid
+  tenantId          String                   @map("tenant_id") @db.Uuid
+  domainName        String                   @map("domain_name")
+  type              DomainType               @default(CUSTOM)
+  verificationToken String                   @map("verification_token")
+  verificationStatus DomainVerificationStatus @default(PENDING) @map("verification_status")
+  mxStatus          DnsRecordStatus          @default(PENDING) @map("mx_status")
+  spfStatus         DnsRecordStatus          @default(PENDING) @map("spf_status")
+  dkimStatus        DnsRecordStatus          @default(PENDING) @map("dkim_status")
+  dmarcStatus       DnsRecordStatus          @default(PENDING) @map("dmarc_status")
+  lastCheckedAt     DateTime?                @map("last_checked_at")
+  createdAt         DateTime                 @default(now()) @map("created_at")
+  updatedAt         DateTime                 @updatedAt @map("updated_at")
+  tenant            Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, domainName])
+  @@index([tenantId, verificationStatus])
+  @@map("mail_domains")
+}
+
+model AIAction {
+  id              String         @id @default(uuid()) @db.Uuid
+  tenantId        String         @map("tenant_id") @db.Uuid
+  createdByUserId String         @map("created_by_user_id") @db.Uuid
+  messageId       String?        @map("message_id") @db.Uuid
+  threadId        String?        @map("thread_id") @db.Uuid
+  actionType      AIActionType   @map("action_type")
+  inputHash       String         @map("input_hash")
+  output          Json?
+  confidenceScore Float?         @map("confidence_score")
+  sourceExcerpt   String?        @map("source_excerpt")
+  status          AIActionStatus @default(PENDING)
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy       AppUser        @relation("AICreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, status, createdAt])
+  @@map("ai_actions")
+}
+
+model Commitment {
+  id              String           @id @default(uuid()) @db.Uuid
+  tenantId        String           @map("tenant_id") @db.Uuid
+  messageId       String?          @map("message_id") @db.Uuid
+  threadId        String?          @map("thread_id") @db.Uuid
+  ownerUserId     String           @map("owner_user_id") @db.Uuid
+  createdByUserId String           @map("created_by_user_id") @db.Uuid
+  text            String
+  dueAt           DateTime?        @map("due_at")
+  priority        ActionPriority   @default(MEDIUM)
+  status          CommitmentStatus @default(OPEN)
+  snoozedUntil    DateTime?        @map("snoozed_until")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner           AppUser          @relation("CommitmentOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  createdBy       AppUser          @relation("CommitmentCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, ownerUserId, status, dueAt])
+  @@map("commitments")
+}
+
+model Notification {
+  id        String             @id @default(uuid()) @db.Uuid
+  tenantId  String             @map("tenant_id") @db.Uuid
+  userId    String             @map("user_id") @db.Uuid
+  type      NotificationType
+  title     String
+  body      String
+  linkPath  String?            @map("link_path")
+  readAt    DateTime?          @map("read_at")
+  createdAt DateTime           @default(now()) @map("created_at")
+  tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      AppUser            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, readAt, createdAt])
+  @@map("notifications")
+}
+
+model IntegrationLink {
+  id              String                @id @default(uuid()) @db.Uuid
+  tenantId        String                @map("tenant_id") @db.Uuid
+  createdByUserId String                @map("created_by_user_id") @db.Uuid
+  product         IntegrationProduct
+  resourceType    IntegrationResourceType @map("resource_type")
+  sourceType      String                @map("source_type")
+  sourceId        String                @map("source_id")
+  externalRef     String?               @map("external_ref")
+  status          IntegrationLinkStatus @default(PENDING)
+  metadata        Json?
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+  tenant          Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy       AppUser               @relation("IntegrationCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, product, status])
+  @@unique([tenantId, product, sourceType, sourceId, resourceType])
+  @@map("integration_links")
+}
+
 enum TenantStatus {
   ACTIVE
   SUSPENDED
@@ -123,5 +395,121 @@ enum MembershipStatus {
   INVITED
   ACTIVE
   SUSPENDED
+  REMOVED
+}
+
+enum PolicyType {
+  AI
+  SENDING
+  RETENTION
+  DELETION
+  ABUSE
+}
+
+enum PolicyStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum MessageStatus {
+  DRAFT
+  SENT
+}
+
+enum RecipientType {
+  TO
+  CC
+  BCC
+}
+
+enum DeliveryStatus {
+  PENDING
+  DELIVERED
+  QUEUED
+  FAILED
+}
+
+enum MailFolder {
+  DRAFTS
+  INBOX
+  SENT
+  TRASH
+}
+
+enum DeliveryEventType {
+  QUEUED
+  DELIVERED
+  FAILED
+  BOUNCED
+  COMPLAINED
+}
+
+enum DomainType {
+  ZOIKO
+  CUSTOM
+}
+enum DomainVerificationStatus {
+  PENDING
+  VERIFIED
+  FAILED
+}
+enum DnsRecordStatus {
+  PENDING
+  VALID
+  INVALID
+}
+enum AIActionType {
+  DRAFT
+  SUMMARY
+  COMMITMENT_EXTRACTION
+  REPLY_OWED
+  DEADLINE
+  APPROVAL
+}
+enum AIActionStatus {
+  PENDING
+  COMPLETED
+  CONFIRMED
+  DISMISSED
+  FAILED
+}
+enum ActionPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+enum CommitmentStatus {
+  OPEN
+  IN_PROGRESS
+  SNOOZED
+  COMPLETED
+  DISMISSED
+}
+enum NotificationType {
+  INFO
+  ACTION_REQUIRED
+  WARNING
+  DIGEST
+}
+enum IntegrationProduct {
+  ZOIKO_ONE
+  SEMA
+  VERTEX
+  LOCAL
+  TIME
+  NEX
+}
+enum IntegrationResourceType {
+  TASK
+  MEETING
+  WORKFLOW
+  LINK
+}
+enum IntegrationLinkStatus {
+  PENDING
+  LINKED
+  FAILED
   REMOVED
 }

@@ -15,6 +15,23 @@ describe("API documentation", () => {
     expect(response.body.paths).toHaveProperty("/api/v1/users/me");
     expect(response.body.paths).toHaveProperty("/api/v1/tenants/current");
     expect(response.body.paths).toHaveProperty("/api/v1/audit/events");
+    expect(response.body.paths).toHaveProperty("/api/v1/policies");
+    expect(response.body.paths).toHaveProperty("/api/v1/policies/evaluate");
+    expect(response.body.paths).toHaveProperty("/api/v1/mail/drafts");
+    expect(response.body.paths).toHaveProperty("/api/v1/mail/drafts/{messageId}/send");
+    expect(response.body.paths).toHaveProperty("/api/v1/mail/drafts/{messageId}/attachments");
+    expect(response.body.paths).toHaveProperty("/api/v1/mail/{messageId}/attachments/{attachmentId}");
+    expect(response.body.paths).toHaveProperty("/api/v1/mail/{messageId}/delivery-events");
+    expect(response.body.paths).toHaveProperty("/api/v1/mail/admin/mailboxes/{mailboxId}/sending");
+    expect(response.body.paths).toHaveProperty("/api/v1/messages");
+    expect(response.body.paths).toHaveProperty("/api/v1/messages/{messageId}");
+    expect(response.body.paths).toHaveProperty("/api/v1/threads");
+    expect(response.body.paths).toHaveProperty("/api/v1/threads/{threadId}");
+    expect(response.body.paths).toHaveProperty("/api/v1/domains");
+    expect(response.body.paths).toHaveProperty("/api/v1/ai/actions");
+    expect(response.body.paths).toHaveProperty("/api/v1/actions");
+    expect(response.body.paths).toHaveProperty("/api/v1/notifications");
+    expect(response.body.paths).toHaveProperty("/api/v1/integrations");
     expect(response.body.components.securitySchemes.bearerAuth.scheme).toBe("bearer");
   });
 

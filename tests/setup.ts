@@ -46,6 +46,12 @@ beforeEach(async () => {
 
   await prisma.refreshToken.deleteMany();
   await prisma.auditEvent.deleteMany();
+  await prisma.integrationLink.deleteMany();
+  await prisma.notification.deleteMany();
+  await prisma.commitment.deleteMany();
+  await prisma.aIAction.deleteMany();
+  await prisma.emailMessage.deleteMany();
+  await prisma.tenantPolicy.deleteMany();
   await prisma.tenantMembership.deleteMany();
   await prisma.appUser.deleteMany();
   await prisma.tenant.deleteMany();

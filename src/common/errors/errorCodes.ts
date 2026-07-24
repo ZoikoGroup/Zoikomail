@@ -11,6 +11,7 @@ export const ErrorCodes = {
   INTERNAL_ERROR: "INTERNAL_ERROR",
   INVITATION_INVALID: "INVITATION_INVALID",
   INVITATION_EXPIRED: "INVITATION_EXPIRED",
+  RATE_LIMIT_EXCEEDED: "RATE_LIMIT_EXCEEDED",
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
