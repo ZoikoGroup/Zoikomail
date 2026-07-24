@@ -34,6 +34,8 @@ model Tenant {
   commitments    Commitment[]
   notifications  Notification[]
   integrationLinks IntegrationLink[]
+  backgroundJobs BackgroundJob[]
+  lifecycleRequests DataLifecycleRequest[]
 
   @@map("tenants")
 }
@@ -60,6 +62,8 @@ model AppUser {
   createdCommitments Commitment[] @relation("CommitmentCreator")
   notifications Notification[]
   createdIntegrationLinks IntegrationLink[] @relation("IntegrationCreator")
+  createdJobs BackgroundJob[] @relation("JobCreator")
+  lifecycleRequests DataLifecycleRequest[] @relation("LifecycleRequester")
 
   @@map("app_users")
 }
@@ -374,6 +378,53 @@ model IntegrationLink {
   @@map("integration_links")
 }
 
+model BackgroundJob {
+  id              String        @id @default(uuid()) @db.Uuid
+  tenantId        String        @map("tenant_id") @db.Uuid
+  createdByUserId String        @map("created_by_user_id") @db.Uuid
+  type            JobType
+  status          JobStatus     @default(PENDING)
+  payload         Json
+  result          Json?
+  idempotencyKey  String        @map("idempotency_key")
+  attempts        Int           @default(0)
+  maxAttempts     Int           @default(3) @map("max_attempts")
+  runAt           DateTime      @default(now()) @map("run_at")
+  lockedAt        DateTime?     @map("locked_at")
+  completedAt     DateTime?     @map("completed_at")
+  lastError       String?       @map("last_error")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy       AppUser       @relation("JobCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  lifecycleRequest DataLifecycleRequest?
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([status, runAt])
+  @@index([tenantId, createdAt])
+  @@map("background_jobs")
+}
+
+model DataLifecycleRequest {
+  id              String          @id @default(uuid()) @db.Uuid
+  tenantId        String          @map("tenant_id") @db.Uuid
+  requestedByUserId String        @map("requested_by_user_id") @db.Uuid
+  type            LifecycleType
+  status          LifecycleStatus @default(REQUESTED)
+  reason          String?
+  jobId           String?         @unique @map("job_id") @db.Uuid
+  approvedAt      DateTime?       @map("approved_at")
+  completedAt     DateTime?       @map("completed_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  requestedBy     AppUser         @relation("LifecycleRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict)
+  job             BackgroundJob?  @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, type, status])
+  @@map("data_lifecycle_requests")
+}
+
 enum TenantStatus {
   ACTIVE
   SUSPENDED
@@ -512,4 +563,29 @@ enum IntegrationLinkStatus {
   LINKED
   FAILED
   REMOVED
+}
+enum JobType {
+  DATA_EXPORT
+  DATA_DELETION
+  NOTIFICATION_DIGEST
+}
+enum JobStatus {
+  PENDING
+  RUNNING
+  RETRY
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+enum LifecycleType {
+  EXPORT
+  DELETION
+}
+enum LifecycleStatus {
+  REQUESTED
+  APPROVED
+  PROCESSING
+  COMPLETED
+  REJECTED
+  CANCELLED
 }

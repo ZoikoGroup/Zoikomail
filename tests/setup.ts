@@ -47,6 +47,8 @@ beforeEach(async () => {
   await prisma.refreshToken.deleteMany();
   await prisma.auditEvent.deleteMany();
   await prisma.integrationLink.deleteMany();
+  await prisma.dataLifecycleRequest.deleteMany();
+  await prisma.backgroundJob.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.commitment.deleteMany();
   await prisma.aIAction.deleteMany();
