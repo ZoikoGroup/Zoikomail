@@ -27,7 +27,12 @@ export type FunnelStep =
   | 'workspace_selected'
   | 'session_issued'
   | 'invitation_viewed'
-  | 'invitation_accepted';
+  | 'invitation_accepted'
+  /* Self-serve workspace creation. */
+  | 'signup_viewed'
+  | 'signup_submitted'
+  | 'signup_rejected'
+  | 'workspace_created';
 
 /** Audit §6.1 — Identity category. */
 export type IdentityAuditEvent =

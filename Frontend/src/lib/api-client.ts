@@ -10,7 +10,15 @@
  * The base path is /api/v1 per API §4.
  */
 
-export const API_BASE = '/api/v1';
+/**
+ * Base for every API call.
+ *
+ * Defaults to a same-origin path so the frontend runs standalone. Setting
+ * NEXT_PUBLIC_API_BASE_URL points it at the Backend service instead, which is
+ * also what flips auth-service off its local fallbacks — one switch, so the two
+ * can never disagree about whether a backend exists.
+ */
+export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api/v1';
 
 export interface ApiError {
   code: string;

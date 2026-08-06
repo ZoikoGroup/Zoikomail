@@ -1,0 +1,33 @@
+{
+  "name": "zoiko-mail-api",
+  "version": "1.0.0",
+  "description": "Zoiko Mail identity API — PostgreSQL-backed authentication",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "migrate": "node db/migrate.mjs",
+    "migrate:status": "node db/migrate.mjs --status",
+    "seed": "node db/seed-demo.mjs",
+    "verify": "npm run typecheck && npm run build"
+  },
+  "type": "module",
+  "dependencies": {
+    "@node-rs/argon2": "^2.0.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "pg": "^8.22.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.1.2",
+    "@types/pg": "^8.20.4",
+    "tsx": "^4.23.7",
+    "typescript": "^7.0.2"
+  },
+  "private": true
+}

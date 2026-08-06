@@ -1,5 +1,5 @@
 import { apiRequest } from '@/lib/api-client';
-import { resolveScenario, type Scenario } from '@/constants/scenarios';
+import { accountExists, resolveScenario, type Scenario } from '@/constants/scenarios';
 import type { Session } from '@/types/auth';
 import type { Workspace } from '@/types/workspace';
 
@@ -20,9 +20,37 @@ interface WorkspacesResponse {
   workspaces: Workspace[];
 }
 
+export interface RegisterInput {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+}
+
+export interface RegisterResult {
+  created: boolean;
+  /** The address already has an account. */
+  taken: boolean;
+}
+
 interface SessionResponse {
   session: Session;
 }
+
+/**
+ * Whether a backend is configured.
+ *
+ * Without this every call fetched a route that does not exist and relied on
+ * the 404 throwing to reach its local fallback. That was not merely untidy:
+ * in development each 404 made Next compile a missing route, which triggered a
+ * Fast Refresh rebuild, which re-evaluated modules and reset the Zustand store
+ * mid-submit. The sign-up flow then landed on the confirmation screen with an
+ * empty email, having apparently forgotten what the user typed.
+ *
+ * Using an error as normal control flow hid a real failure. Set
+ * NEXT_PUBLIC_API_BASE_URL to switch the real calls on.
+ */
+const BACKEND_ENABLED = Boolean(process.env.NEXT_PUBLIC_API_BASE_URL);
 
 export const SEED_WORKSPACES: Workspace[] = [
   {
@@ -72,6 +100,7 @@ export const authService = {
    * downstream changes when it does.
    */
   async signIn(email: string, password: string, priorAttempts: number): Promise<Scenario> {
+    if (!BACKEND_ENABLED) return resolveScenario(email, password, priorAttempts);
     try {
       return await apiRequest<Scenario>('/auth/sign-in', {
         method: 'POST',
@@ -83,8 +112,37 @@ export const authService = {
     }
   },
 
+  /**
+   * Create an account and its first workspace.
+   *
+   * The caller becomes owner of a new tenant, so this is a create in the
+   * sense of API §7 and carries an idempotency key — a double-submitted form
+   * must not produce two workspaces.
+   *
+   * `taken` is reported separately from `created` because a collision on the
+   * sign-up form is not a user-enumeration risk in the way it is on sign-in:
+   * the person is asserting the address is theirs, and telling them nothing
+   * would leave them unable to proceed. The response is deliberately the same
+   * shape either way so the server can decide to withhold it later.
+   */
+  async register(input: RegisterInput): Promise<RegisterResult> {
+    const taken = accountExists(input.email);
+    if (!BACKEND_ENABLED) return { created: !taken, taken };
+    if (taken) return { created: false, taken: true };
+    try {
+      return await apiRequest<RegisterResult>('/auth/register', {
+        method: 'POST',
+        body: input,
+        idempotent: true,
+      });
+    } catch {
+      return { created: !taken, taken };
+    }
+  },
+
   /** Verify the six-digit MFA code. */
   async verifyMfa(code: string): Promise<{ verified: boolean }> {
+    if (!BACKEND_ENABLED) return { verified: code.length === 6 };
     try {
       return await apiRequest<{ verified: boolean }>('/auth/mfa/verify', {
         method: 'POST',
@@ -98,6 +156,7 @@ export const authService = {
 
   /** Memberships the caller may select between. */
   async listWorkspaces(): Promise<Workspace[]> {
+    if (!BACKEND_ENABLED) return SEED_WORKSPACES;
     try {
       const res = await apiRequest<WorkspacesResponse>('/auth/workspaces');
       return res.workspaces;
@@ -111,6 +170,7 @@ export const authService = {
    * refreshes authorization context and clears cached tenant data.
    */
   async selectWorkspace(tenantId: string): Promise<Session> {
+    if (!BACKEND_ENABLED) return fallbackSession(tenantId);
     try {
       const res = await apiRequest<SessionResponse>('/auth/session', {
         method: 'POST',
@@ -126,6 +186,7 @@ export const authService = {
 
   /** Revoke every session for the caller — Security §4.2. */
   async revokeAllSessions(): Promise<void> {
+    if (!BACKEND_ENABLED) return;
     try {
       await apiRequest<void>('/auth/sessions', { method: 'DELETE', idempotent: true });
     } catch {

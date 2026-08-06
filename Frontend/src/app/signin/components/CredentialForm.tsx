@@ -33,6 +33,7 @@ export function CredentialForm({ retry = false }: { retry?: boolean }) {
   const lastOutcome = useAuthStore((s) => s.lastOutcome);
   const attempts = useAuthStore((s) => s.attempts);
   const attemptsRemaining = useAuthStore((s) => s.attemptsRemaining);
+  const justCreated = useAuthStore((s) => s.justCreated);
 
   const { proceed, busy } = useSignInFlow();
   const [reveal, setReveal] = useState(false);
@@ -59,6 +60,18 @@ export function CredentialForm({ retry = false }: { retry?: boolean }) {
   return (
     <AuthCard>
       <AuthHeading title="Sign in">Use the work email your workspace invited.</AuthHeading>
+
+      {/*
+        Shown once, only when arriving straight from workspace creation. Without
+        it the redirect reads as the form having reset itself — the person
+        pressed "Create account" and landed on a sign-in page with no
+        acknowledgement that anything happened.
+      */}
+      {justCreated && !rejected && (
+        <Banner tone="ok" live>
+          <b>Account created.</b> Sign in with the email and password you just chose.
+        </Banner>
+      )}
 
       {rejected && (
         <div ref={bannerRef} tabIndex={-1} className="outline-none">
@@ -123,6 +136,20 @@ export function CredentialForm({ retry = false }: { retry?: boolean }) {
           }
         />
 
+        {/*
+          Recovery sits with the password field, which is where people look for
+          it — and where every credible product puts it. It used to be the only
+          link under the card; that position now belongs to workspace creation.
+        */}
+        <div className="-mt-1 flex justify-end">
+          <Link
+            href={ROUTES.recovery}
+            className="text-[11.5px] font-semibold text-ink-3 no-underline transition-colors hover:text-accent hover:underline"
+          >
+            Forgotten your password?
+          </Link>
+        </div>
+
         <Button type="submit" variant="primary" disabled={!ready} loading={busy('proceed')}>
           Proceed
           <ArrowRight aria-hidden className="h-3.5 w-3.5" strokeWidth={1.9} />
@@ -131,12 +158,24 @@ export function CredentialForm({ retry = false }: { retry?: boolean }) {
 
       <Divider />
 
-      <Link href={ROUTES.recovery} className="self-start text-xs2 font-semibold text-accent no-underline hover:underline">
-        Can&rsquo;t sign in?
+      <Link
+        href={ROUTES.signUp}
+        className="group flex items-center justify-between gap-3 rounded-field border border-border bg-s2 px-[13px] py-[11px] no-underline transition-[background-color,border-color] duration-150 ease-premium hover:border-bstrong hover:bg-s3"
+      >
+        <span className="flex flex-col">
+          <span className="text-xs2 font-semibold text-ink">New to Zoiko Mail?</span>
+          <span className="mt-0.5 text-[11.5px] text-ink-3">Create your workspace</span>
+        </span>
+        <ArrowRight
+          aria-hidden
+          className="h-3.5 w-3.5 shrink-0 text-accent transition-transform duration-150 ease-premium group-hover:translate-x-0.5"
+          strokeWidth={1.9}
+        />
       </Link>
 
       <Note>
-        Zoiko Mail has no public sign-up. Access is by workspace invitation only during the controlled pilot.
+        Access is limited to the controlled pilot. New workspaces are verified by email, and sending limits
+        are raised only after review.
       </Note>
     </AuthCard>
   );

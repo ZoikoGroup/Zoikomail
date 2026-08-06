@@ -29,7 +29,9 @@ export type Outcome =
   | 'workspaceSuspended'
   | 'workspaceDeleting'
   | 'dormant'
-  | 'blocked';
+  | 'blocked'
+  /** Signed in on a newly created account — the dashboard placeholder. */
+  | 'dashboard';
 
 export interface Scenario {
   outcome: Outcome;
@@ -97,6 +99,41 @@ function inferFirstName(email: string): string {
   return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
+/**
+ * Accounts created through the sign-up form during this page session.
+ *
+ * In-memory on purpose. There is no backend for POST /auth/register yet, and
+ * the alternative — persisting the chosen password into localStorage or
+ * sessionStorage — puts a credential in web storage, which is not a pattern
+ * worth establishing even in a demo. The cost is that a full page reload
+ * forgets the account; that is the honest consequence of having no server.
+ */
+interface CreatedAccount {
+  password: string;
+  firstName: string;
+}
+
+const created = new Map<string, CreatedAccount>();
+
+export function registerDemoAccount(email: string, password: string, firstName: string): void {
+  created.set(localPart(email), { password, firstName });
+}
+
+export function findDemoAccount(email: string): CreatedAccount | undefined {
+  return created.get(localPart(email));
+}
+
+/**
+ * Whether an address already has an account.
+ *
+ * Used only by workspace creation. Sign-in must never branch on this — there
+ * the whole point is that an unknown address and a wrong password are
+ * indistinguishable.
+ */
+export function accountExists(email: string): boolean {
+  return localPart(email) in SCENARIOS || created.has(localPart(email));
+}
+
 /** Where each outcome sends the caller. */
 export const OUTCOME_ROUTE: Record<Outcome, string> = {
   mfa: ROUTES.mfa,
@@ -110,6 +147,7 @@ export const OUTCOME_ROUTE: Record<Outcome, string> = {
   workspaceDeleting: ROUTES.workspaceDeleting,
   dormant: ROUTES.dormant,
   blocked: ROUTES.blocked,
+  dashboard: ROUTES.dashboard,
 };
 
 /**
@@ -121,6 +159,17 @@ export const OUTCOME_ROUTE: Record<Outcome, string> = {
  *   3. Then the remaining membership and tenant states apply.
  */
 export function resolveScenario(email: string, password: string, priorAttempts: number): Scenario {
+  // An account created in this session authenticates against the password its
+  // owner chose, not the shared demo one, and goes straight to the dashboard
+  // placeholder rather than through the scenario ladder.
+  const own = findDemoAccount(email);
+  if (own) {
+    if (password !== own.password) {
+      return priorAttempts + 1 >= MAX_ATTEMPTS ? { outcome: 'locked' } : { outcome: 'failed' };
+    }
+    return { outcome: 'dashboard', workspaceIds: ['ten_acme'], firstName: own.firstName };
+  }
+
   const scenario = SCENARIOS[localPart(email)];
 
   if (scenario?.preCredential) return scenario;

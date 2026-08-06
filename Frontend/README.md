@@ -64,6 +64,50 @@ and an unknown address returns the generic failure instead.
 Two arrival states are not sign-in outcomes — the platform sends a user there
 mid-session. Reach them at `/signin/expired` and `/signin/revoked`.
 
+### Creating a workspace
+
+`New to Zoiko Mail? Create your workspace` on the sign-in card opens `/signup`:
+first name, last name, work email, password, **Create account**.
+
+The password field carries a live five-rule checklist — 8 characters,
+uppercase, lowercase, number, special character — with a segment meter above
+it. Nothing turns red until the field has content, and met/unmet differ by icon
+shape as well as colour.
+
+Field validation runs **on submit**, not per keystroke, and focus jumps to the
+first field that needs attention. The checklist is the exception: it updates
+live because it is guidance, not judgement.
+
+Using one of the demo local parts above (`alex@…`, `sarah@…`, `suspended@…` …)
+hits the collision path — *"That address already has an account"* with a direct
+link to sign in.
+
+**Any other address succeeds and goes straight back to `/signin`**, prefilled,
+with an *"Account created"* acknowledgement. Sign in with the password you just
+chose — not the demo one — and you land on `/dashboard`:
+
+```
+/signup  ──Create account──▶  /signin  ──your own password──▶  /dashboard
+                             (prefilled,                      "Dashboard is in
+                              acknowledged)                    development"
+```
+
+There is **no email-confirmation step**. Nothing sends mail yet, so a screen
+telling someone to check their inbox would be asking them to wait for something
+that will never arrive. When a transactional email stream exists, the step slots
+in between Create account and sign-in.
+
+Created accounts live in memory only (`constants/scenarios.ts`). A full page
+reload forgets them — the honest consequence of having no server, and better
+than putting a chosen password into `localStorage`.
+
+**A note on the policy.** Security §1.1 cites NIST SP 800-63B, which
+recommends length over composition rules and argues that forcing character
+classes produces predictable substitutions (`Password1!`). These five rules are
+a product decision that overrides that guidance. The length floor is a separate
+rule so it can be raised without touching the others — the change NIST would
+actually endorse.
+
 ### Resolution order
 
 `src/constants/scenarios.ts` mirrors Security §7.2, which evaluates account and
@@ -122,7 +166,12 @@ src/
 │   │   ├── expired/                Arrival — idle timeout
 │   │   ├── revoked/                Arrival — role changed
 │   │   └── recovery/               Hand-off, audited
-│   ├── welcome/                    Signed in
+│   ├── signup/
+│   │   ├── page.tsx                Create your workspace
+│   │   └── components/
+│   │       └── RegisterForm.tsx    Names · email · password · Create account
+│   ├── dashboard/                  "Dashboard is in development"
+│   ├── welcome/                    Signed in — demo scenario accounts
 │   │   └── components/
 │   ├── account/
 │   │   ├── suspended/  invitation/  no-workspace/
@@ -135,7 +184,7 @@ src/
 │   ├── ui/                         Button, Chip, Avatar, Card primitives
 │   ├── common/                     Banner, Countdown, StepIndicator
 │   ├── forms/                      TextField, OtpField, WorkspaceOption,
-│   │                               OptionCard
+│   │                               OptionCard, PasswordRequirements
 │   └── layout/                     AuthShell, BrandPanel, AuthCard,
 │                                   LegalFooter, ThemeToggle, Providers
 │
@@ -146,7 +195,7 @@ src/
 ├── store/                          auth-store (Zustand)
 ├── context/                        ThemeContext
 ├── types/                          auth, workspace
-├── constants/                      routes, scenarios, legal
+├── constants/                      routes, scenarios, password-policy, legal
 ├── utils/                          cn, format, return-url
 └── styles/                         globals.css — the token layer
 ```

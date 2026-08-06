@@ -13,6 +13,14 @@ export const ROUTES = {
   dormant: '/signin/dormant',
   recovery: '/signin/recovery',
 
+  signUp: '/signup',
+
+  /**
+   * Where a newly created account lands after signing in. A placeholder until
+   * the product surfaces exist — the authentication work stops here.
+   */
+  dashboard: '/dashboard',
+
   accountSuspended: '/account/suspended',
   invitationPending: '/account/invitation',
   noWorkspace: '/account/no-workspace',

@@ -51,6 +51,13 @@ interface AuthState {
   firstName: string;
   setFirstName: (value: string) => void;
 
+  /**
+   * Set when an account has just been created, so the sign-in form can
+   * acknowledge it instead of looking like the form was simply reset.
+   */
+  justCreated: boolean;
+  setJustCreated: (value: boolean) => void;
+
   /* ── session ────────────────────────────────── */
   session: Session | null;
   setSession: (session: Session) => void;
@@ -105,8 +112,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   listableWorkspaces: () => get().workspaces.filter(isListable),
   selectableWorkspaces: () => get().workspaces.filter(isSelectable),
 
-  firstName: 'Alex',
+  // Empty, not a seeded name. A default here leaks into any screen that
+  // greets the user — "Thanks, Alex" for someone who typed something else.
+  // Callers must handle the empty case rather than rely on a placeholder.
+  firstName: '',
   setFirstName: (value) => set({ firstName: value }),
+
+  justCreated: false,
+  setJustCreated: (value) => set({ justCreated: value }),
 
   session: null,
   setSession: (session) => set({ session }),
@@ -119,6 +132,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       session: null,
       lastOutcome: null,
       attempts: 0,
+      justCreated: false,
       workspaces: SEED_WORKSPACES,
       selectedWorkspaceId: SEED_WORKSPACES[0]?.id ?? null,
     }),

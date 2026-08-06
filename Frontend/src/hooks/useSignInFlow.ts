@@ -30,6 +30,7 @@ export function useSignInFlow() {
     password,
     attempts,
     setLastOutcome,
+    setJustCreated,
     registerFailure,
     resetAttempts,
     applyWorkspaceIds,
@@ -49,6 +50,8 @@ export function useSignInFlow() {
     if (!credentialsEntered() || pending) return;
 
     setPending('proceed');
+    // The "account created" acknowledgement has served its purpose.
+    setJustCreated(false);
     trackFunnel('email_submitted', { domain: email.split('@')[1] ?? '' });
 
     let scenario: Scenario;
@@ -98,6 +101,7 @@ export function useSignInFlow() {
     applyWorkspaceIds,
     setFirstName,
     setLastOutcome,
+    setJustCreated,
     router,
   ]);
 

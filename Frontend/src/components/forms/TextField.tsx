@@ -10,6 +10,12 @@ export interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   invalid?: boolean;
   tail?: ReactNode;
   locked?: boolean;
+  /**
+   * Extra element to associate with the input, merged with the hint rather
+   * than replacing it — the password field needs both its error message and
+   * its requirement checklist announced.
+   */
+  describedBy?: string;
 }
 
 /**
@@ -20,11 +26,12 @@ export interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
  * colour alone.
  */
 export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextField(
-  { label, hint, invalid = false, tail, locked = false, className, ...rest },
+  { label, hint, invalid = false, tail, locked = false, describedBy, className, ...rest },
   ref,
 ) {
   const id = useId();
   const hintId = hint ? `${id}-hint` : undefined;
+  const described = [hintId, describedBy].filter(Boolean).join(' ') || undefined;
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -51,7 +58,7 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function T
           ref={ref}
           id={id}
           aria-invalid={invalid || undefined}
-          aria-describedby={hintId}
+          aria-describedby={described}
           readOnly={locked || undefined}
           className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-ink-3"
           {...rest}
@@ -60,7 +67,15 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function T
       </div>
 
       {hint && (
-        <p id={hintId} className="font-mono text-[10px] leading-[1.6] text-ink-3">
+        <p
+          id={hintId}
+          className={cn(
+            'font-mono text-[10px] leading-[1.6]',
+            // When the field is invalid the hint is carrying the reason, so it
+            // takes the error colour rather than sitting quietly in grey.
+            invalid ? 'text-crit' : 'text-ink-3',
+          )}
+        >
           {hint}
         </p>
       )}

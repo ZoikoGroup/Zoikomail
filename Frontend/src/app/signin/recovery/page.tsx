@@ -15,10 +15,9 @@ import { maskEmail } from '@/utils/format';
 /**
  * Recovery entry point.
  *
- * Not one of the eighteen states: Security §5 places recovery with the identity
- * provider, so this page is the hand-off the login page links to rather than a
- * flow Zoiko Mail owns. It exists because "Can't sign in?" must lead somewhere
- * real.
+ * Security §5 places recovery with the identity provider, so this page is a
+ * hand-off rather than a flow Zoiko Mail owns. It is reached from "Forgotten
+ * your password?" beside the password field.
  *
  * The anti-phishing line is deliberate. Zoiko Mail is an email product, so its
  * own credential surface is a high-value phishing target, and Security §5
