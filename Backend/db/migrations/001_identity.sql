@@ -10,6 +10,13 @@
 -- What is never stored: the password itself. Only an Argon2id digest, which can
 -- verify a password but cannot be reversed into one.
 
+-- Required by this migration: citext for the email column, pgcrypto for
+-- gen_random_uuid(). Created here rather than assumed, so a brand new database
+-- migrates cleanly — both are trusted extensions from PostgreSQL 13, so the
+-- database owner can create them without superuser.
+CREATE EXTENSION IF NOT EXISTS citext;
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Data Model §6.2 — the four documented account states.
 DO $$
 BEGIN

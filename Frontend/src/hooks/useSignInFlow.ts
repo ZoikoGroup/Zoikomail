@@ -31,6 +31,7 @@ export function useSignInFlow() {
     attempts,
     setLastOutcome,
     setJustCreated,
+    setSignInDetails,
     registerFailure,
     resetAttempts,
     applyWorkspaceIds,
@@ -78,6 +79,17 @@ export function useSignInFlow() {
     if (scenario.firstName) setFirstName(scenario.firstName);
     setLastOutcome(scenario.outcome);
 
+    // Only present when the server actually created a session row.
+    setSignInDetails(
+      scenario.sessionId && scenario.signedInAt && scenario.expiresAt
+        ? {
+            sessionId: scenario.sessionId,
+            signedInAt: scenario.signedInAt,
+            expiresAt: scenario.expiresAt,
+          }
+        : null,
+    );
+
     // Falls back to the generic failure rather than pushing undefined, which
     // navigates nowhere and reads as a dead button.
     const target = OUTCOME_ROUTE[scenario.outcome] ?? ROUTES.failed;
@@ -102,6 +114,7 @@ export function useSignInFlow() {
     setFirstName,
     setLastOutcome,
     setJustCreated,
+    setSignInDetails,
     router,
   ]);
 

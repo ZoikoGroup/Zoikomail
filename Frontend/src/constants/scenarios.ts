@@ -39,6 +39,15 @@ export interface Scenario {
   workspaceIds?: string[];
   /** Given name, used by the welcome state. */
   firstName?: string;
+
+  /**
+   * Session details, present only on a successful sign-in. Supplied by the
+   * server from the user_session row it just wrote, so the dashboard shows the
+   * real session rather than a plausible-looking placeholder.
+   */
+  sessionId?: string;
+  signedInAt?: string;
+  expiresAt?: string;
   /**
    * True when the platform resolves this before checking the password.
    *

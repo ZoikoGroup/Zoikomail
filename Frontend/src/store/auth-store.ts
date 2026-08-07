@@ -58,6 +58,10 @@ interface AuthState {
   justCreated: boolean;
   setJustCreated: (value: boolean) => void;
 
+  /** Session details returned by the server on a successful sign-in. */
+  signInDetails: { sessionId: string; signedInAt: string; expiresAt: string } | null;
+  setSignInDetails: (value: AuthState['signInDetails']) => void;
+
   /* ── session ────────────────────────────────── */
   session: Session | null;
   setSession: (session: Session) => void;
@@ -120,6 +124,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   justCreated: false,
   setJustCreated: (value) => set({ justCreated: value }),
+
+  signInDetails: null,
+  setSignInDetails: (value) => set({ signInDetails: value }),
 
   session: null,
   setSession: (session) => set({ session }),

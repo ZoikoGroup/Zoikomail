@@ -1,0 +1,86 @@
+# Zoiko Mail — full stack.
+#
+#   docker compose up --build      start everything
+#   docker compose down            stop, keeping the database
+#   docker compose down -v         stop and delete the database
+#
+# Three containers: PostgreSQL, the identity API, the frontend. Migrations run
+# automatically when the API container starts, so a clean checkout needs no
+# setup beyond this file.
+
+name: zoikomail
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: zoikomail
+      POSTGRES_USER: zoikomail_app
+      # Dev default so `docker compose up` works with no setup. Override in
+      # .env for anything shared, and never reuse it outside a laptop.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zoikomail_dev_only}
+    ports:
+      # 5433 on the host, because a native PostgreSQL already holds 5432. The
+      # containers still talk to each other on 5432 over the compose network.
+      - "5433:5432"
+    volumes:
+      # /var/lib/postgresql, NOT .../data. From 18 the image stores data in a
+      # major-version subdirectory so pg_upgrade --link can work without
+      # crossing a mount boundary; mounting the old path makes it refuse to
+      # start. See docker-library/postgres#1259.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zoikomail_app -d zoikomail"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  backend:
+    build:
+      context: ./Backend
+    restart: unless-stopped
+    environment:
+      # 'postgres' is the service name on the compose network, and the internal
+      # port is 5432 regardless of what the host mapping says.
+      DATABASE_URL: postgresql://zoikomail_app:${POSTGRES_PASSWORD:-zoikomail_dev_only}@postgres:5432/zoikomail
+      PORT: "4000"
+      CORS_ORIGIN: http://localhost:3000
+      NODE_ENV: production
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        # Waits for the database to accept connections, not merely to have
+        # started. Without this the API races the first migration and exits.
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
+
+  frontend:
+    build:
+      # Defaults to Frontend, which is the name on the branch. A local checkout
+      # that still has the original 'Frontned' spelling sets FRONTEND_DIR in
+      # .env rather than needing a different compose file.
+      context: ./${FRONTEND_DIR:-Frontend}
+      args:
+        # The address the BROWSER uses. It runs on the host, so this is
+        # localhost:4000 — not the backend service name.
+        API_BASE_URL: http://localhost:4000/api/v1
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:4000/api/v1
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  pgdata:

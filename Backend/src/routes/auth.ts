@@ -220,5 +220,24 @@ authRouter.post('/sign-in', async (req, res) => {
 
   await audit(req, 'login', { userId: user.id, email });
 
-  res.json({ outcome: 'dashboard', firstName: user.first_name, workspaceIds: ['ten_acme'] });
+  // One row per successful sign-in, carrying the details of this particular
+  // session. Written after the credential check, never before — a row here
+  // means someone actually got in.
+  const session = await query<{ id: string; signed_in_at: Date; expires_at: Date }>(
+    `INSERT INTO user_session (user_id, email, tenant_id, source_ip, user_agent, request_id)
+     VALUES ($1, $2, 'ten_acme', $3, $4, $5)
+     RETURNING id, signed_in_at, expires_at`,
+    [user.id, user.email, clientIp(req), req.header('User-Agent') ?? null, req.requestId],
+  );
+
+  const row = session.rows[0]!;
+
+  res.json({
+    outcome: 'dashboard',
+    firstName: user.first_name,
+    workspaceIds: ['ten_acme'],
+    sessionId: row.id,
+    signedInAt: row.signed_in_at.toISOString(),
+    expiresAt: row.expires_at.toISOString(),
+  });
 });
